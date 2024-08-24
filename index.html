@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width,
+initial-scale=1.0"
+    />
+    <title>Socket Chat App</title>
+
+    <!-- // MESSAGES GO HERE  -->
+    <ul id="messages"></ul>
+
+    <form id="form" action="">
+      <input id="input" autocomplete="off" onkeydown="onKeyDownNotEnter()" />
+      <button>Send</button>
+    </form>
+    <p id="typing"></p>
+  </head>
+  <body>
+    <h2>Welcome to Socket Chat</h2>
+    <input id="nickname" autocomplete="off" />
+    <button onclick="login()">Login</button>
+
+    <div id="display"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var socket = undefined;
+
+      var messages = document.getElementById("messages");
+      var form = document.getElementById("form");
+      var input = document.getElementById("input");
+      var nickname = document.getElementById("nickname");
+      var userTyping = document.getElementById("typing");
+      var display = document.getElementById("display");
+      var typing = false;
+      var online = false;
+      var timeout = undefined;
+      var user;
+
+      function getNickname() {
+        return nickname.value;
+      }
+
+      // CHECK IF TYPING
+      function onKeyDownNotEnter() {
+        if (online) {
+          if (typing == false) {
+            typing = true;
+            socket.emit("typing", getNickname());
+            timeout = setTimeout(timeoutFunction, 2000);
+          } else {
+            clearTimeout(timeout);
+            timeout = setTimeout(timeoutFunction, 2000);
+          }
+        }
+      }
+
+      function timeoutFunction() {
+        typing = false;
+      }
+
+      console.log("2: ", socket);
+      // if (socket !== undefined) {
+
+      // }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (online) {
+          if (input.value) {
+            socket.emit("chat message", {
+              nickname: getNickname(),
+              message: input.value,
+            });
+            input.value = "";
+          }
+        }
+      });
+
+      function login() {
+        socket = io();
+        console.log(socket);
+        socket.on("connection", (msg) => console.log("msg: ", msg));
+        online = true;
+        socket.emit(
+          "hasLogin",
+          JSON.stringify({ name: getNickname(), status: online })
+        );
+
+        // ONLINE USERS ARRAY
+        console.log("here");
+        socket.on("chat message", (msg) => console.log("msg2: ", msg));
+
+        socket.on("getOnlineUsers", (onlineUserArr) => {
+          var onlineUsers = JSON.parse(onlineUserArr);
+          console.log(onlineUsers);
+          display.innerHTML = "";
+          onlineUsers.forEach((user) => {
+            console.log(user);
+            var displayUsers = document.createElement("li");
+            displayUsers.textContent = `${user} is online`;
+            display.appendChild(displayUsers);
+          });
+        });
+
+        // HTML USER + TYPING
+        socket.on("userIsTyping", (data) => {
+          var typingStatus = document.getElementById("typing");
+          if (typingStatus) {
+            typingStatus.innerHTML = data;
+            setTimeout(() => {
+              typingStatus.innerHTML = "";
+            }, 5000);
+          }
+        });
+
+        socket.on("chat message", function (msg) {
+          console.log("test", msg, getNickname());
+          var item = document.createElement("li");
+          item.textContent = `${msg.nickname}: ${msg.message}`;
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+      }
+    </script>
+  </body>
+</html>
